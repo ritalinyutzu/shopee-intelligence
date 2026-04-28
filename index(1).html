@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Shopee 選品系統 v5 | 四階段分析</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0f1117;--sur:#1a1d27;--sur2:#22263a;--sur3:#2a2f45;
+  --bd:rgba(255,255,255,0.07);--bd2:rgba(255,255,255,0.13);
+  --tx:#f0f0f5;--tx2:#9da3b8;--tx3:#5c6380;
+  --green:#22c55e;--amber:#f59e0b;--red:#ef4444;--blue:#4f8ef7;--purple:#a78bfa;
+  --mono:'DM Mono',monospace;--sans:'Noto Sans TC',sans-serif;
+  --r:12px;--rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6}
+
+nav{position:sticky;top:0;z-index:100;background:rgba(15,17,23,0.93);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.logo-text{font-size:13px;font-weight:600}
+.nav-pills{display:flex;gap:4px}
+.np{font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--bd);background:transparent;color:var(--tx3);font-family:var(--sans)}
+.np:hover{color:var(--tx);border-color:var(--bd2)}
+.nav-date{font-family:var(--mono);font-size:10px;color:var(--tx3)}
+
+.hero{padding:48px 0 40px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 700px 300px at 70% 50%,rgba(79,142,247,0.06),transparent 70%),
+             radial-gradient(ellipse 400px 250px at 15% 80%,rgba(167,139,250,0.05),transparent 70%);
+  pointer-events:none}
+.hi{max-width:1200px;margin:0 auto;padding:0 20px;position:relative}
+.chip{display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:20px;padding:3px 10px;font-size:10px;font-family:var(--mono);color:var(--green);margin-bottom:14px;letter-spacing:.08em;text-transform:uppercase}
+.chip::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green)}
+h1.ht{font-size:clamp(24px,4.5vw,38px);font-weight:900;color:var(--tx);line-height:1.1;margin-bottom:8px;letter-spacing:-.02em}
+h1.ht span{color:var(--blue)}
+.hs{font-size:13px;color:var(--tx2);max-width:520px;line-height:1.75}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;margin-top:32px;background:var(--bd);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--sur);padding:14px 16px}
+.kn{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1;margin-bottom:4px}
+.kn.g{color:var(--green)}.kn.a{color:var(--amber)}.kn.b{color:var(--blue)}.kn.r{color:var(--red)}.kn.p{color:var(--purple)}
+.kl{font-size:10px;color:var(--tx3);line-height:1.3}
+
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+section{padding:40px 0}
+section+section{border-top:1px solid var(--bd)}
+.slbl{font-family:var(--mono);font-size:10px;color:var(--tx3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.st{font-size:17px;font-weight:700;margin-bottom:3px;letter-spacing:-.01em}
+.sd{font-size:12px;color:var(--tx2);line-height:1.65;max-width:540px}
+.sh{margin-bottom:20px}
+
+/* PHASE PIPELINE */
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:24px}
+.phase{background:var(--sur);padding:16px;position:relative}
+.phase.active{background:var(--sur2)}
+.ph-num{font-family:var(--mono);font-size:10px;color:var(--tx3);margin-bottom:6px}
+.ph-title{font-size:13px;font-weight:700;color:var(--tx);margin-bottom:4px}
+.ph-desc{font-size:11px;color:var(--tx3);line-height:1.5}
+.ph-out{display:inline-block;font-size:10px;margin-top:8px;padding:2px 8px;border-radius:20px;background:rgba(79,142,247,0.1);color:var(--blue);border:1px solid rgba(79,142,247,0.2)}
+
+/* CONTROLS */
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.sw{display:flex;align-items:center;gap:6px;background:var(--sur2);border:1px solid var(--bd2);border-radius:var(--rs);padding:7px 11px;flex:1;min-width:0;max-width:240px}
+.sw input{border:none;background:transparent;outline:none;font-size:13px;color:var(--tx);font-family:var(--sans);width:100%;min-width:0}
+.sw input::placeholder{color:var(--tx3)}
+.fsel{background:var(--sur2);border:1px solid var(--bd);border-radius:var(--rs);padding:7px 10px;font-size:12px;color:var(--tx);font-family:var(--sans);outline:none;cursor:pointer}
+.fsel option{background:var(--sur2)}
+.rc{font-size:11px;color:var(--tx3);font-family:var(--mono);margin-left:auto}
+
+/* CARDS */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.cc{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;transition:border-color .15s,background .15s}
+.cc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--cc)}
+.cc:hover{border-color:var(--bd2);background:var(--sur2)}
+.ct{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ci{font-size:20px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border-radius:8px}
+.cr{font-family:var(--mono);font-size:10px;background:var(--sur3);padding:2px 8px;border-radius:20px;color:var(--tx3)}
+.cr.t5{color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)}
+.ck{font-size:15px;font-weight:700;margin-bottom:1px;letter-spacing:-.01em;word-break:break-all}
+.ccat{font-size:11px;color:var(--tx3);margin-bottom:10px}
+.cbars{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.br{display:flex;align-items:center;gap:6px}
+.bl{font-size:10px;color:var(--tx3);width:34px;flex-shrink:0;text-align:right}
+.bb{flex:1;height:5px;background:var(--sur3);border-radius:3px;overflow:hidden;min-width:0}
+.bf{height:100%;border-radius:3px}
+.bv{font-family:var(--mono);font-size:10px;color:var(--tx2);width:38px;text-align:right;flex-shrink:0}
+.ctag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px}
+.te{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.2)}
+.ts{background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.2)}
+.cins{font-size:11px;color:var(--tx3);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)}
+
+/* SCORE METER */
+.score-meter{display:flex;align-items:center;gap:8px;margin-top:8px}
+.sm-label{font-size:10px;color:var(--tx3);width:28px}
+.sm-bg{flex:1;height:6px;background:var(--sur3);border-radius:3px;overflow:hidden}
+.sm-fill{height:100%;border-radius:3px}
+.sm-val{font-family:var(--mono);font-size:10px;width:28px;text-align:right}
+
+/* LINKED */
+.linked-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.lc{font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(79,142,247,0.08);color:#60a5fa;border:1px solid rgba(79,142,247,0.15)}
+
+/* REC BADGE */
+.rec-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:6px}
+.rec-top{background:rgba(34,197,94,0.12);color:var(--green);border:1px solid rgba(34,197,94,0.2)}
+.rec-mid{background:rgba(245,158,11,0.12);color:var(--amber);border:1px solid rgba(245,158,11,0.2)}
+
+/* CHARTS */
+.ch-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chc{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:18px}
+.ch-title{font-size:12px;font-weight:600;margin-bottom:12px}
+
+/* TABLE */
+.tw{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.ts2{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.pt{width:100%;border-collapse:collapse;min-width:640px}
+.pt th{text-align:left;padding:9px 11px;font-size:10px;font-weight:500;color:var(--tx3);border-bottom:1px solid var(--bd);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;background:var(--sur2)}
+.pt td{padding:9px 11px;border-bottom:1px solid var(--bd);font-size:12px;vertical-align:middle}
+.pt tr:last-child td{border-bottom:none}
+.pt tbody tr:hover td{background:rgba(255,255,255,0.02)}
+.rn{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;font-family:var(--mono);background:var(--sur2);color:var(--tx3)}
+.rn.t5{background:rgba(245,158,11,0.15);color:var(--amber)}
+.dim-bars{display:flex;gap:3px;align-items:center}
+.dim-seg{height:14px;border-radius:2px;min-width:2px}
+
+footer{background:var(--sur);border-top:1px solid var(--bd);padding:20px 0;text-align:center}
+.ft{font-size:10px;color:var(--tx3);font-family:var(--mono)}
+
+@media(max-width:600px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .pipeline{grid-template-columns:1fr 1fr}
+  .ch-grid{grid-template-columns:1fr}
+  .cgrid{grid-template-columns:1fr}
+  h1.ht{font-size:24px}
+  .hs{font-size:12px}
+  .nav-pills{display:none}
+  .nav-date{display:none}
+  section{padding:28px 0}
+}
+@media(max-width:380px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kn{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <span class="logo-text">Shopee 選品系統 v5</span>
+    </div>
+    <div class="nav-pills">
+      <button class="np" onclick="document.getElementById('s1').scrollIntoView({behavior:'smooth'})">第一階段</button>
+      <button class="np" onclick="document.getElementById('s2').scrollIntoView({behavior:'smooth'})">AI評分</button>
+      <button class="np" onclick="document.getElementById('s3').scrollIntoView({behavior:'smooth'})">連結品</button>
+      <button class="np" onclick="document.getElementById('s4').scrollIntoView({behavior:'smooth'})">數據圖表</button>
+    </div>
+    <span class="nav-date" id="nav-date"></span>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hi">
+    <div class="chip">四階段選品模型</div>
+    <h1 class="ht">蝦皮選品<br><span>智能偵測系統</span></h1>
+    <p class="hs">趨勢角度 × 搜尋流量 × 進入門檻三維評分，嚴格黑名單過濾，輸出可立即操作的主推品 + 連結品組合建議。</p>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kn b">5,000</div><div class="kl">原始關鍵字</div></div>
+      <div class="kpi"><div class="kn a">≥60°</div><div class="kl">趨勢門檻</div></div>
+      <div class="kpi"><div class="kn r">黑名單</div><div class="kl">嚴格過濾</div></div>
+      <div class="kpi"><div class="kn g">40</div><div class="kl">精選品類</div></div>
+      <div class="kpi"><div class="kn p">3D</div><div class="kl">AI三維評分</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- 流程說明 -->
+<section id="s0">
+  <div class="sh">
+    <div class="slbl">分析流程</div>
+    <h2 class="st">四階段選品模型</h2>
+  </div>
+  <div class="pipeline">
+    <div class="phase active">
+      <div class="ph-num">第一階段</div>
+      <div class="ph-title">📊 關鍵字篩選</div>
+      <div class="ph-desc">5,000筆搜索詞 × 趨勢角度，套用嚴格黑名單，篩出 ≥60° 高潛力關鍵字。</div>
+      <span class="ph-out">輸出 258 個</span>
+    </div>
+    <div class="phase active">
+      <div class="ph-num">第二階段</div>
+      <div class="ph-title">🤖 AI三維評分</div>
+      <div class="ph-desc">競爭強度、市場規模、進入門檻三維度綜合評分。避強擊弱策略。</div>
+      <span class="ph-out">≥60分 極力推薦</span>
+    </div>
+    <div class="phase active">
+      <div class="ph-num">第三階段</div>
+      <div class="ph-title">🔗 連結品推薦</div>
+      <div class="ph-desc">每個主推品對應 3-4 個延伸連結品，組合銷售提升客單價。</div>
+      <span class="ph-out">主品+連結品組合</span>
+    </div>
+    <div class="phase active">
+      <div class="ph-num">第四階段</div>
+      <div class="ph-title">🎯 整合建議</div>
+      <div class="ph-desc">最終輸出「主商品 X + 附屬品 Y+Z」勝率最高組合，可直接執行。</div>
+      <span class="ph-out">完整操作建議</span>
+    </div>
+  </div>
+</section>
+
+<!-- 第一+二階段：品類卡片 -->
+<section id="s1">
+  <div class="sh" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <div class="slbl">第一+二階段</div>
+      <h2 class="st">AI 評分品類清單</h2>
+      <p class="sd">趨勢(40%) + 市場規模(35%) + 進入門檻(25%) 三維評分。≥60分極力推薦。</p>
+    </div>
+    <div class="ctrl" style="align-self:flex-end;flex-wrap:wrap">
+      <div class="sw"><span style="color:var(--tx3);font-size:13px">⌕</span><input id="search" type="text" placeholder="搜尋品類..." oninput="renderAll()"></div>
+      <select class="fsel" id="sort-f" onchange="renderAll()">
+        <option value="ai_score">AI 評分</option>
+        <option value="trend_angle">趨勢角度</option>
+        <option value="volume">搜尋流量</option>
+        <option value="cpc">建議出價</option>
+      </select>
+      <select class="fsel" id="rec-f" onchange="renderAll()">
+        <option value="">全部</option>
+        <option value="極力推薦">極力推薦</option>
+        <option value="中等推薦">中等推薦</option>
+      </select>
+      <span class="rc" id="rc">40 個</span>
+    </div>
+  </div>
+  <div class="cgrid" id="cgrid"></div>
+</section>
+
+<!-- 第三階段：連結品 -->
+<section id="s3">
+  <div class="sh">
+    <div class="slbl">第三階段</div>
+    <h2 class="st">主推品 + 連結品組合</h2>
+    <p class="sd">進入弱競品賣場，找出常一起賣的延伸品項，組合銷售提升客單價。</p>
+  </div>
+  <div id="linked-list" style="display:flex;flex-direction:column;gap:8px"></div>
+</section>
+
+<!-- 數據圖表 -->
+<section id="s4">
+  <div class="sh">
+    <div class="slbl">第四階段 · 數據圖表</div>
+    <h2 class="st">市場分布分析</h2>
+  </div>
+  <div class="ch-grid">
+    <div class="chc">
+      <div class="ch-title">趨勢角度 vs 搜尋流量（泡泡大小=AI分）</div>
+      <div style="position:relative;height:220px"><canvas id="cBubble" role="img" aria-label="趨勢泡泡圖">泡泡圖</canvas></div>
+    </div>
+    <div class="chc">
+      <div class="ch-title">三維評分結構（Top 10）</div>
+      <div style="position:relative;height:220px"><canvas id="cRadar" role="img" aria-label="雷達圖">雷達圖</canvas></div>
+    </div>
+  </div>
+  <div class="chc" style="margin-bottom:14px">
+    <div class="ch-title">AI評分 Top 20（含三維分解）</div>
+    <div id="bar-wrap" style="position:relative"><canvas id="cBar" role="img" aria-label="評分長條圖">長條圖</canvas></div>
+  </div>
+  <div class="tw">
+    <div class="ts2">
+      <table class="pt">
+        <thead><tr>
+          <th>#</th><th>關鍵字</th><th>品類</th><th>趨勢°</th><th>流量</th><th>出價</th>
+          <th>趨勢分</th><th>市場分</th><th>進入分</th><th>AI總分</th><th>推薦</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</div>
+<footer><p class="ft" id="ft-date">—</p></footer>
+
+<script>
+const DATA = [{"rank": 1, "keyword": "像素皮卡丘", "category": "IP周邊", "trend_angle": 89.8, "trend_type": "爆紅（>75°）", "volume": 19714, "cpc": 13.8, "ai_score": 74.4, "dim_trend": 99.3, "dim_market": 71.6, "dim_entry": 38.5, "rec_level": "極力推薦", "linked": ["收納包", "手機殼", "鑰匙圈", "貼紙"], "is_hot": true}, {"rank": 2, "keyword": "17e 手機殼", "category": "手機殼", "trend_angle": 89.8, "trend_type": "爆紅（>75°）", "volume": 15982, "cpc": 13.9, "ai_score": 73.9, "dim_trend": 99.3, "dim_market": 70.1, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["手機支架", "螢幕保護貼", "充電線", "行動電源"], "is_hot": true}, {"rank": 3, "keyword": "白沙屯外套", "category": "白沙屯外套", "trend_angle": 89.3, "trend_type": "爆紅（>75°）", "volume": 13086, "cpc": 13.9, "ai_score": 72.7, "dim_trend": 97.7, "dim_market": 68.7, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["帆布袋", "鑰匙圈", "手環", "帽子"], "is_hot": true}, {"rank": 4, "keyword": "設計師上衣", "category": "設計感上衣", "trend_angle": 86.9, "trend_type": "爆紅（>75°）", "volume": 22696, "cpc": 13.9, "ai_score": 70.9, "dim_trend": 89.7, "dim_market": 72.7, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["薄外套", "短褲", "包包", "飾品"], "is_hot": true}, {"rank": 5, "keyword": "拍立得照片", "category": "拍立得周邊", "trend_angle": 85.3, "trend_type": "爆紅（>75°）", "volume": 30566, "cpc": 13.9, "ai_score": 69.5, "dim_trend": 84.3, "dim_market": 74.8, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["底片", "相框", "拍立得包", "收納本"], "is_hot": true}, {"rank": 6, "keyword": "美式薄脆本", "category": "美式薄脆本", "trend_angle": 86.3, "trend_type": "爆紅（>75°）", "volume": 13774, "cpc": 13.9, "ai_score": 68.8, "dim_trend": 87.7, "dim_market": 69.1, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["鋼筆", "貼紙", "書套", "桌墊"], "is_hot": true}, {"rank": 7, "keyword": "防曬外套", "category": "防曬系列", "trend_angle": 80.4, "trend_type": "爆紅（>75°）", "volume": 237412, "cpc": 13.9, "ai_score": 68.2, "dim_trend": 68.0, "dim_market": 89.7, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["防曬噴霧", "防曬袖套", "遮陽帽", "冰袖"], "is_hot": true}, {"rank": 8, "keyword": "日系薄外套", "category": "薄外套", "trend_angle": 84.3, "trend_type": "爆紅（>75°）", "volume": 30478, "cpc": 13.9, "ai_score": 68.2, "dim_trend": 81.0, "dim_market": 74.8, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["短袖T恤", "涼感上衣", "短褲", "帆布包"], "is_hot": true}, {"rank": 9, "keyword": "金項鍊 1兩", "category": "金飾", "trend_angle": 84.8, "trend_type": "爆紅（>75°）", "volume": 21462, "cpc": 13.9, "ai_score": 68.0, "dim_trend": 82.7, "dim_market": 72.3, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["手環飾品", "項鍊", "耳環", "戒指"], "is_hot": true}, {"rank": 10, "keyword": "迷你冰霸杯", "category": "隨身冷飲杯", "trend_angle": 85.0, "trend_type": "爆紅（>75°）", "volume": 15916, "cpc": 13.9, "ai_score": 67.5, "dim_trend": 83.3, "dim_market": 70.1, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["吸管", "保溫袋", "飲料提袋", "杯套"], "is_hot": true}, {"rank": 11, "keyword": "掛脖風扇", "category": "電風扇", "trend_angle": 82.5, "trend_type": "爆紅（>75°）", "volume": 21409, "cpc": 11.7, "ai_score": 67.3, "dim_trend": 75.0, "dim_market": 72.2, "dim_entry": 48.2, "rec_level": "極力推薦", "linked": ["行動電源", "掛脖風扇配件", "USB風扇", "露營燈"], "is_hot": true}, {"rank": 12, "keyword": "休閒套裝裙", "category": "套裝裙", "trend_angle": 85.2, "trend_type": "爆紅（>75°）", "volume": 13253, "cpc": 13.9, "ai_score": 67.3, "dim_trend": 84.0, "dim_market": 68.8, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["夏日洋裝", "涼鞋", "包包", "飾品"], "is_hot": true}, {"rank": 13, "keyword": "防蚊褲", "category": "防蚊系列", "trend_angle": 83.4, "trend_type": "爆紅（>75°）", "volume": 33463, "cpc": 13.9, "ai_score": 67.2, "dim_trend": 78.0, "dim_market": 75.5, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["防曬噴霧", "涼感巾", "急救包", "蚊香盒"], "is_hot": true}, {"rank": 14, "keyword": "泰國寬褲", "category": "泰國寬褲", "trend_angle": 83.5, "trend_type": "爆紅（>75°）", "volume": 29591, "cpc": 13.9, "ai_score": 67.0, "dim_trend": 78.3, "dim_market": 74.6, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["泰國包包", "草帽", "涼鞋", "棉麻上衣"], "is_hot": true}, {"rank": 15, "keyword": "涼感牛仔褲", "category": "涼感衣物", "trend_angle": 83.5, "trend_type": "爆紅（>75°）", "volume": 22021, "cpc": 13.9, "ai_score": 66.3, "dim_trend": 78.3, "dim_market": 72.5, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["涼感寢具", "冰絲床包", "涼感口罩", "運動短褲"], "is_hot": true}, {"rank": 16, "keyword": "青梅", "category": "青梅零食", "trend_angle": 83.0, "trend_type": "爆紅（>75°）", "volume": 25763, "cpc": 13.9, "ai_score": 66.0, "dim_trend": 76.7, "dim_market": 73.6, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["話梅糖", "梅粉", "梅汁", "零食禮盒"], "is_hot": true}, {"rank": 17, "keyword": "亞麻上衣", "category": "天然棉麻上衣", "trend_angle": 82.7, "trend_type": "爆紅（>75°）", "volume": 29552, "cpc": 13.9, "ai_score": 66.0, "dim_trend": 75.7, "dim_market": 74.6, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["棉麻短褲", "草帽", "涼鞋", "棉麻包包"], "is_hot": true}, {"rank": 18, "keyword": "fun box", "category": "盲盒", "trend_angle": 82.2, "trend_type": "爆紅（>75°）", "volume": 30678, "cpc": 13.9, "ai_score": 65.4, "dim_trend": 74.0, "dim_market": 74.9, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["收納盒", "展示架", "保護袋", "貼紙"], "is_hot": true}, {"rank": 19, "keyword": "男童短褲", "category": "兒童夏裝", "trend_angle": 83.2, "trend_type": "爆紅（>75°）", "volume": 16708, "cpc": 13.9, "ai_score": 65.2, "dim_trend": 77.3, "dim_market": 70.4, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["兒童涼鞋", "兒童帽子", "兒童防曬衣", "兒童泳衣"], "is_hot": true}, {"rank": 20, "keyword": "女裝七分袖", "category": "七分袖", "trend_angle": 82.4, "trend_type": "爆紅（>75°）", "volume": 24379, "cpc": 13.9, "ai_score": 65.1, "dim_trend": 74.7, "dim_market": 73.2, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["薄外套", "短褲", "防曬帽", "包包"], "is_hot": true}, {"rank": 21, "keyword": "低腰無痕褲", "category": "低腰無痕褲", "trend_angle": 82.6, "trend_type": "爆紅（>75°）", "volume": 21173, "cpc": 13.9, "ai_score": 65.0, "dim_trend": 75.3, "dim_market": 72.2, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["低腰牛仔褲", "無袖背心", "短版T恤", "腰鍊"], "is_hot": true}, {"rank": 22, "keyword": "寵物涼感墊", "category": "寵物涼感", "trend_angle": 83.4, "trend_type": "爆紅（>75°）", "volume": 13524, "cpc": 13.9, "ai_score": 64.9, "dim_trend": 78.0, "dim_market": 68.9, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["寵物飲水機", "寵物零食", "寵物外出包", "防蚊噴霧"], "is_hot": true}, {"rank": 23, "keyword": "涼被雙人", "category": "涼感寢具", "trend_angle": 81.8, "trend_type": "爆紅（>75°）", "volume": 13099, "cpc": 12.1, "ai_score": 64.7, "dim_trend": 72.7, "dim_market": 68.7, "dim_entry": 46.4, "rec_level": "極力推薦", "linked": ["涼感衣物", "防蚊帳", "除濕盒", "枕頭套"], "is_hot": true}, {"rank": 24, "keyword": "iphone手錶", "category": "Apple Watch周邊", "trend_angle": 81.8, "trend_type": "爆紅（>75°）", "volume": 20889, "cpc": 13.8, "ai_score": 63.9, "dim_trend": 72.7, "dim_market": 72.1, "dim_entry": 38.5, "rec_level": "極力推薦", "linked": ["手機殼", "充電線", "手機支架", "耳機"], "is_hot": true}, {"rank": 25, "keyword": "天絲牛仔褲", "category": "天絲牛仔褲", "trend_angle": 81.2, "trend_type": "爆紅（>75°）", "volume": 22317, "cpc": 13.9, "ai_score": 63.3, "dim_trend": 70.7, "dim_market": 72.5, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["涼感上衣", "薄外套", "帆布包", "皮帶"], "is_hot": true}, {"rank": 26, "keyword": "蜥蜴", "category": "爬蟲寵物", "trend_angle": 81.5, "trend_type": "爆紅（>75°）", "volume": 18049, "cpc": 13.9, "ai_score": 63.1, "dim_trend": 71.7, "dim_market": 71.0, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["爬蟲飼料", "爬蟲箱", "保溫燈", "躲避屋"], "is_hot": true}, {"rank": 27, "keyword": "幸運手環", "category": "手環飾品", "trend_angle": 81.5, "trend_type": "爆紅（>75°）", "volume": 16070, "cpc": 13.9, "ai_score": 62.8, "dim_trend": 71.7, "dim_market": 70.2, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": [], "is_hot": true}, {"rank": 28, "keyword": "卡式零錢包", "category": "零錢包", "trend_angle": 81.7, "trend_type": "爆紅（>75°）", "volume": 13185, "cpc": 13.9, "ai_score": 62.6, "dim_trend": 72.3, "dim_market": 68.7, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["長夾", "鑰匙包", "手機殼", "短夾"], "is_hot": true}, {"rank": 29, "keyword": "夏天外套", "category": "夏天外套", "trend_angle": 80.3, "trend_type": "爆紅（>75°）", "volume": 22713, "cpc": 13.9, "ai_score": 62.1, "dim_trend": 67.7, "dim_market": 72.7, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": [], "is_hot": true}, {"rank": 30, "keyword": "巫毒帶", "category": "巫毒帶", "trend_angle": 80.3, "trend_type": "爆紅（>75°）", "volume": 21011, "cpc": 13.8, "ai_score": 61.9, "dim_trend": 67.7, "dim_market": 72.1, "dim_entry": 38.5, "rec_level": "極力推薦", "linked": [], "is_hot": true}, {"rank": 31, "keyword": "遮肚子上衣", "category": "遮肚上衣", "trend_angle": 80.2, "trend_type": "爆紅（>75°）", "volume": 19190, "cpc": 13.9, "ai_score": 61.5, "dim_trend": 67.3, "dim_market": 71.5, "dim_entry": 38.4, "rec_level": "極力推薦", "linked": ["高腰短褲", "薄外套", "涼鞋", "包包"], "is_hot": true}, {"rank": 32, "keyword": "檸檬橄欖油", "category": "檸檬橄欖油", "trend_angle": 78.6, "trend_type": "爆紅（>75°）", "volume": 22243, "cpc": 13.9, "ai_score": 59.8, "dim_trend": 62.0, "dim_market": 72.5, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 33, "keyword": "耀西", "category": "耀西", "trend_angle": 76.4, "trend_type": "爆紅（>75°）", "volume": 40576, "cpc": 13.9, "ai_score": 58.4, "dim_trend": 54.7, "dim_market": 76.9, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 34, "keyword": "涼感床墊", "category": "涼感床墊", "trend_angle": 77.3, "trend_type": "爆紅（>75°）", "volume": 22288, "cpc": 14.0, "ai_score": 57.9, "dim_trend": 57.7, "dim_market": 72.5, "dim_entry": 37.6, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 35, "keyword": "ux15", "category": "ux15", "trend_angle": 77.9, "trend_type": "爆紅（>75°）", "volume": 14512, "cpc": 13.9, "ai_score": 57.8, "dim_trend": 59.7, "dim_market": 69.4, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 36, "keyword": "宏綸", "category": "宏綸", "trend_angle": 78.0, "trend_type": "爆紅（>75°）", "volume": 13503, "cpc": 13.9, "ai_score": 57.7, "dim_trend": 60.0, "dim_market": 68.9, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 37, "keyword": "文創 t恤", "category": "文創 t恤", "trend_angle": 77.9, "trend_type": "爆紅（>75°）", "volume": 14026, "cpc": 13.9, "ai_score": 57.7, "dim_trend": 59.7, "dim_market": 69.2, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 38, "keyword": "冰絲長褲", "category": "冰絲長褲", "trend_angle": 75.9, "trend_type": "爆紅（>75°）", "volume": 39483, "cpc": 13.9, "ai_score": 57.6, "dim_trend": 53.0, "dim_market": 76.7, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}, {"rank": 39, "keyword": "短袖t恤女", "category": "短袖T恤", "trend_angle": 74.6, "trend_type": "暴增（60-75°）", "volume": 71463, "cpc": 13.9, "ai_score": 57.4, "dim_trend": 48.7, "dim_market": 81.0, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": ["短褲", "薄外套", "帆布包", "帽子"], "is_hot": true}, {"rank": 40, "keyword": "日系夏裝", "category": "日系夏裝", "trend_angle": 75.6, "trend_type": "爆紅（>75°）", "volume": 39761, "cpc": 13.9, "ai_score": 57.3, "dim_trend": 52.0, "dim_market": 76.7, "dim_entry": 38.4, "rec_level": "中等推薦", "linked": [], "is_hot": true}];
+const CAT_META = {"IP周邊": ["🎮", "#673ab7", "像素皮卡丘等復古電玩IP，收藏需求強"], "手機殼": ["📱", "#455a64", "17e新機爆紅，週邊先機"], "白沙屯外套": ["🧡", "#f44336", "信仰商品，限量感強烈"], "設計感上衣": ["✨", "#e91e63", "小眾設計師崛起，差異化競爭"], "拍立得周邊": ["📸", "#ff5722", "底片攝影復古風潮延燒"], "美式薄脆本": ["📓", "#5d4037", "文具控美式風格，新品類"], "防曬系列": ["☀️", "#e55a1c", "夏日防曬剛需，流量最大"], "薄外套": ["🧥", "#5b8def", "春夏換季高需求，男女童齊發"], "金飾": ["💛", "#f9a825", "黃金以兩計，輕奢首飾需求"], "隨身冷飲杯": ["🧃", "#00bcd4", "市集戶外族，迷你冰霸杯爆紅"], "電風扇": ["💨", "#2196f3", "夏季剛需，掛脖風扇最夯"], "套裝裙": ["👗", "#9c27b0", "穿搭套裝化，省搭配腦"], "防蚊系列": ["🦟", "#4caf50", "夏季防蚊多品類，機能服飾化"], "泰國寬褲": ["👘", "#ff9800", "東南亞風潮，TikTok驅動"], "涼感衣物": ["🧊", "#00bcd4", "機能布料新品類，爆紅明確"], "青梅零食": ["🫒", "#558b2f", "夏日酸甜零食，新品類爆"], "天然棉麻上衣": ["🌿", "#8bc34a", "慢時尚趨勢，質感女裝"], "盲盒": ["📦", "#ff6f00", "Fun Box族群，衝動購買力強"], "兒童夏裝": ["👶", "#ff9800", "親子購物節點，大量需求"], "七分袖": ["👕", "#607d8b", "夏日防曬上衣，女裝七分袖"], "低腰無痕褲": ["👖", "#e91e63", "內著新趨勢，低腰回潮"], "寵物涼感": ["🐾", "#795548", "寵物主人夏季保養"], "涼感寢具": ["🛏️", "#7c4dff", "暑假前置需求，涼被床包同步爆"], "Apple Watch周邊": ["⌚", "#607d8b", "iPhone生態周邊商機"], "天絲牛仔褲": ["👖", "#3f51b5", "天絲材質牛仔，夏日舒適"], "爬蟲寵物": ["🦎", "#388e3c", "蜥蜴等爬蟲，小眾高黏著"], "手環飾品": ["📿", "#c2185b", "幸運手環，祈福+時尚兼備"], "零錢包": ["👛", "#795548", "卡式零錢包，卡+零錢二合一"], "夏天外套": ["🧥", "#3e7ad3", "夏天外套防曬需求竄升"], "巫毒帶": ["🧿", "#6a1b9a", "巫毒娃娃周邊，獵奇熱潮"], "遮肚上衣": ["👚", "#ad1457", "遮肚設計上衣，機能+美觀"], "檸檬橄欖油": ["🍋", "#558b2f", "特色調味料，健康料理趨勢"], "耀西": ["🎮", "#388e3c", "任天堂IP周邊，玩家族群"], "涼感床墊": ["🛏️", "#5e35b1", "涼感寢具延伸，床墊品類"], "文創 t恤": ["🎨", "#00695c", "文創設計T恤，差異化商品"], "冰絲長褲": ["🧊", "#006064", "冰絲涼感長褲，夏日主力"], "短袖T恤": ["👕", "#00695c", "T恤夏日基本款，大量需求"], "日系夏裝": ["🌸", "#ad1457", "日系夏裝女裝，韓日風格"]};
+
+const now = new Date();
+const ds = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+document.getElementById('nav-date').textContent = ds;
+document.getElementById('ft-date').textContent = '生成：'+ds+' · 蝦皮搜尋趨勢×海鷹搜索詞流量 · 四階段選品模型 v5';
+
+function getMeta(cat){ return CAT_META[cat] || ['🔖','#4f8ef7','新興品類，持續觀察']; }
+const maxVol = Math.max(...DATA.map(d=>d.volume));
+
+function ac(a){ return a>=80?'#ef4444':a>=75?'#f59e0b':'#22c55e'; }
+function fmtV(n){ return n>=1000?(n/1000).toFixed(0)+'K':String(n); }
+
+function renderAll(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const col=document.getElementById('sort-f').value;
+  const rec=document.getElementById('rec-f').value;
+  let rows=[...DATA];
+  if(q) rows=rows.filter(r=>r.keyword.includes(q)||r.category.includes(q));
+  if(rec) rows=rows.filter(r=>r.rec_level===rec);
+  rows.sort((a,b)=>b[col]-a[col]);
+  document.getElementById('rc').textContent=rows.length+' 個';
+
+  // Cards
+  document.getElementById('cgrid').innerHTML=rows.map((r,i)=>{
+    const [icon,color,ins]=getMeta(r.category);
+    const tpct=((r.trend_angle-60)/30*100).toFixed(0);
+    const vpct=(r.volume/maxVol*100).toFixed(0);
+    const spct=(r.ai_score/100*100).toFixed(0);
+    const a=r.trend_angle;
+    const isTop=i<5;
+    const recClass=r.rec_level==='極力推薦'?'rec-top':'rec-mid';
+    const tagClass=a>=75?'te':'ts';
+    const tagLabel=a>=75?'🔥 爆紅':'📈 暴增';
+    const linkedHtml=r.linked.length?`<div class="linked-chips">${r.linked.map(l=>`<span class="lc">+${l}</span>`).join('')}</div>`:'';
+    return `<div class="cc" style="--cc:${color}">
+      <div class="ct">
+        <div class="ci">${icon}</div>
+        <span class="cr${isTop?' t5':''}">#${r.rank}</span>
+      </div>
+      <div class="ck">${r.keyword}</div>
+      <div class="ccat">${r.category}</div>
+      <div class="cbars">
+        <div class="br"><span class="bl">趨勢</span><div class="bb"><div class="bf" style="width:${tpct}%;background:${ac(a)}"></div></div><span class="bv" style="color:${ac(a)}">${a}°</span></div>
+        <div class="br"><span class="bl">流量</span><div class="bb"><div class="bf" style="width:${Math.min(100,vpct)}%;background:var(--blue)"></div></div><span class="bv">${fmtV(r.volume)}</span></div>
+        <div class="br"><span class="bl">AI分</span><div class="bb"><div class="bf" style="width:${spct}%;background:var(--purple)"></div></div><span class="bv" style="color:var(--purple)">${r.ai_score}</span></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="ctag ${tagClass}">${tagLabel}</span>
+        <span class="rec-badge ${recClass}">${r.rec_level}</span>
+      </div>
+      ${linkedHtml}
+      <div class="cins">${ins}</div>
+    </div>`;
+  }).join('');
+
+  // Table
+  document.getElementById('tbody').innerHTML=rows.map((r,i)=>{
+    const [icon]=getMeta(r.category);
+    const a=r.trend_angle;
+    return `<tr>
+      <td><span class="rn${i<5?' t5':''}">${r.rank}</span></td>
+      <td style="font-weight:500">${icon} ${r.keyword}</td>
+      <td style="color:var(--tx2)">${r.category}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:${ac(a)};font-weight:500">${a}°</td>
+      <td style="font-family:var(--mono);font-size:11px">${r.volume.toLocaleString()}</td>
+      <td style="font-family:var(--mono);font-size:11px">NT$${r.cpc}</td>
+      <td><div class="dim-bars"><div class="dim-seg" style="width:${Math.max(4,r.dim_trend/2)}px;background:#ef4444;opacity:.8" title="趨勢:${r.dim_trend}"></div></div><span style="font-family:var(--mono);font-size:10px;color:var(--tx3);margin-left:4px">${r.dim_trend.toFixed(0)}</span></td>
+      <td><span style="font-family:var(--mono);font-size:10px;color:var(--blue)">${r.dim_market.toFixed(0)}</span></td>
+      <td><span style="font-family:var(--mono);font-size:10px;color:var(--green)">${r.dim_entry.toFixed(0)}</span></td>
+      <td><span style="font-family:var(--mono);font-size:12px;font-weight:500;color:var(--purple)">${r.ai_score}</span></td>
+      <td><span style="font-size:10px;font-weight:500;color:${r.rec_level==='極力推薦'?'var(--green)':'var(--amber)'}">${r.rec_level}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Linked list (第三階段)
+  const withLinked = rows.filter(r=>r.linked&&r.linked.length>0).slice(0,15);
+  document.getElementById('linked-list').innerHTML=withLinked.map(r=>{
+    const [icon,color]=getMeta(r.category);
+    return `<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:18px">${icon}</div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-size:13px;font-weight:700">${r.keyword}</div>
+        <div style="font-size:10px;color:var(--tx3)">${r.category} · AI ${r.ai_score}分</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;color:var(--tx3);font-size:11px;flex-shrink:0">→ 連結品：</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${r.linked.map(l=>`<span style="font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(79,142,247,0.1);color:#60a5fa;border:1px solid rgba(79,142,247,0.2)">${l}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+renderAll();
+
+// Charts
+const tc='#5c6380',gc='rgba(255,255,255,0.04)';
+
+new Chart(document.getElementById('cBubble'),{
+  type:'bubble',
+  data:{datasets:[{
+    data:DATA.map(r=>{return{x:r.volume,y:r.trend_angle,r:Math.max(4,Math.min(14,r.ai_score/6)),k:r.keyword}}),
+    backgroundColor:DATA.map(r=>r.trend_angle>=80?'rgba(239,68,68,.65)':r.trend_angle>=75?'rgba(245,158,11,.65)':'rgba(34,197,94,.65)'),
+    borderColor:'transparent',
+  }]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:d=>`${d.raw.k} · ${d.raw.y}° · ${d.raw.x.toLocaleString()}`}}},
+    scales:{
+      x:{title:{display:true,text:'搜尋流量',color:tc,font:{size:10}},grid:{color:gc},ticks:{color:tc,font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}},
+      y:{title:{display:true,text:'趨勢角度',color:tc,font:{size:10}},grid:{color:gc},ticks:{color:tc,font:{size:10}},min:55,max:92},
+    },
+  }
+});
+
+const top10=DATA.slice(0,10);
+new Chart(document.getElementById('cRadar'),{
+  type:'radar',
+  data:{
+    labels:['趨勢強度','市場規模','進入門檻'],
+    datasets:top10.slice(0,3).map((r,i)=>{
+      const [icon,color]=getMeta(r.category);
+      return{label:r.keyword,data:[r.dim_trend,r.dim_market,r.dim_entry],
+        borderColor:['#ef4444','#4f8ef7','#22c55e'][i],
+        backgroundColor:['rgba(239,68,68,.1)','rgba(79,142,247,.1)','rgba(34,197,94,.1)'][i],
+        borderWidth:2,pointRadius:3};
+    }),
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:tc,font:{size:10},boxWidth:10}}},
+    scales:{r:{grid:{color:gc},angleLines:{color:gc},ticks:{color:tc,font:{size:9},backdropColor:'transparent'},pointLabels:{color:tc,font:{size:10}},min:0,max:100}},
+  }
+});
+
+const top20=DATA.slice(0,20);
+document.getElementById('bar-wrap').style.height=(top20.length*28+70)+'px';
+new Chart(document.getElementById('cBar'),{
+  type:'bar',
+  data:{
+    labels:top20.map(r=>r.keyword),
+    datasets:[
+      {label:'趨勢強度',data:top20.map(r=>r.dim_trend),backgroundColor:'rgba(239,68,68,.7)',borderRadius:2,indexAxis:'y',stack:'s'},
+      {label:'市場規模',data:top20.map(r=>r.dim_market),backgroundColor:'rgba(79,142,247,.7)',borderRadius:2,indexAxis:'y',stack:'s'},
+      {label:'進入門檻',data:top20.map(r=>r.dim_entry),backgroundColor:'rgba(34,197,94,.7)',borderRadius:2,indexAxis:'y',stack:'s'},
+    ],
+  },
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{labels:{color:tc,font:{size:10},boxWidth:10}}},
+    scales:{x:{stacked:true,grid:{color:gc},ticks:{color:tc,font:{size:10}}},y:{stacked:true,grid:{display:false},ticks:{color:tc,font:{size:10}}}}
+  }
+});
+</script>
+</body>
+</html>
